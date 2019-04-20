@@ -3,7 +3,6 @@ package anticaptcha
 import (
 	"bytes"
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -11,11 +10,12 @@ import (
 
 var (
 	baseURL      = &url.URL{Host: "api.anti-captcha.com", Scheme: "https", Path: "/"}
-	sendInterval = 10 * time.Second
 )
-
+type LogFunction func(params ...interface{})
 type Client struct {
 	APIKey string
+	SendInterval time.Duration
+	LogFunction LogFunction
 }
 
 // Method to create the task to process the recaptcha, returns the task_id
@@ -93,20 +93,25 @@ func (c *Client) SendRecaptcha(websiteURL string, recaptchaKey string) (string, 
 	}
 	for {
 		if response["status"] == "processing" {
-			log.Println("Result is not ready, waiting a few seconds to check again...")
-			time.Sleep(sendInterval)
+			c.log("Result is not ready, waiting a few seconds to check again...")
+			time.Sleep(c.SendInterval)
 			response, err = c.getTaskResult(taskID)
 			if err != nil {
 				return "", err
 			}
 		} else {
-			log.Println("Result is ready.")
+			c.log("Result is ready.")
 			break
 		}
 	}
 	return response["solution"].(map[string]interface{})["gRecaptchaResponse"].(string), nil
 }
 
+func (c Client) log(params ...interface{}) {
+	if c.LogFunction != nil {
+		c.LogFunction(params...)
+	}
+}
 // Method to create the task to process the image captcha, returns the task_id
 func (c *Client) createTaskImage(imgString string) (float64, error) {
 	// Mount the data to be sent
@@ -155,14 +160,14 @@ func (c *Client) SendImage(imgString string) (string, error) {
 	}
 	for {
 		if response["status"] == "processing" {
-			log.Println("Result is not ready, waiting a few seconds to check again...")
-			time.Sleep(sendInterval)
+			c.log("Result is not ready, waiting a few seconds to check again...")
+			time.Sleep(c.SendInterval)
 			response, err = c.getTaskResult(taskID)
 			if err != nil {
 				return "", err
 			}
 		} else {
-			log.Println("Result is ready.")
+			c.log("Result is ready.")
 			break
 		}
 	}
