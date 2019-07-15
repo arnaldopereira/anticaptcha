@@ -3,19 +3,21 @@ package anticaptcha
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
 	"time"
 )
 
 var (
-	baseURL      = &url.URL{Host: "api.anti-captcha.com", Scheme: "https", Path: "/"}
+	baseURL = &url.URL{Host: "api.anti-captcha.com", Scheme: "https", Path: "/"}
 )
+
 type LogFunction func(params ...interface{})
 type Client struct {
-	APIKey string
+	APIKey       string
 	SendInterval time.Duration
-	LogFunction LogFunction
+	LogFunction  LogFunction
 }
 
 // Method to create the task to process the recaptcha, returns the task_id
@@ -46,8 +48,15 @@ func (c *Client) createTaskRecaptcha(websiteURL string, recaptchaKey string) (fl
 	// Decode response
 	responseBody := make(map[string]interface{})
 	json.NewDecoder(resp.Body).Decode(&responseBody)
-	// TODO treat api errors and handle them properly
-	return responseBody["taskId"].(float64), nil
+
+	if errorCode, ok := responseBody["errorCode"].(string); ok {
+		return 0, errors.New(errorCode)
+	}
+	if taskId, ok := responseBody["taskId"].(float64); ok {
+		return taskId, nil
+	} else {
+		return 0, errors.New("task id is empty")
+	}
 }
 
 // Method to check the result of a given task, returns the json returned from the api
@@ -112,6 +121,7 @@ func (c Client) log(params ...interface{}) {
 		c.LogFunction(params...)
 	}
 }
+
 // Method to create the task to process the image captcha, returns the task_id
 func (c *Client) createTaskImage(imgString string) (float64, error) {
 	// Mount the data to be sent
@@ -139,8 +149,15 @@ func (c *Client) createTaskImage(imgString string) (float64, error) {
 	// Decode response
 	responseBody := make(map[string]interface{})
 	json.NewDecoder(resp.Body).Decode(&responseBody)
-	// TODO treat api errors and handle them properly
-	return responseBody["taskId"].(float64), nil
+
+	if errorCode, ok := responseBody["errorCode"].(string); ok {
+		return 0, errors.New(errorCode)
+	}
+	if taskId, ok := responseBody["taskId"].(float64); ok {
+		return taskId, nil
+	} else {
+		return 0, errors.New("task id is empty")
+	}
 }
 
 // SendImage Method to encapsulate the processing of the image captcha
