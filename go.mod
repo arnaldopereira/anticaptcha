@@ -1,1 +1,3 @@
-module github.com/fabian-f/anticaptcha
+module github.com/arnaldopereira/anticaptcha
+
+go 1.12
